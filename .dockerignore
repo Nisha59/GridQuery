@@ -1,0 +1,14 @@
+# Only pyproject.toml, uv.lock, README.md and src/ are needed in the image.
+.git
+.venv
+.env
+data
+docs
+tests
+**/__pycache__
+**/*.py[oc]
+.pytest_cache
+.ruff_cache
+.gradio
+.vscode
+.idea

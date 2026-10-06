@@ -1,0 +1,36 @@
+# One command: `docker compose up --build`, then open http://localhost:8000
+#
+# `init` builds data/gridquery.duckdb on the first start (downloads ~3 years of SMARD data,
+# a few minutes) and does nothing when the database already exists. `app` serves the API
+# and the UI once `init` has finished. Settings and the API key come from .env.
+
+x-gridquery: &gridquery
+  build: .
+  image: gridquery:latest
+  env_file: .env
+  environment:
+    GRIDQUERY_DUCKDB_PATH: /app/data/gridquery.duckdb
+    GRIDQUERY_RAW_DATA_DIR: /app/data/raw
+  volumes:
+    - ./data:/app/data
+
+services:
+  init:
+    <<: *gridquery
+    command:
+      - sh
+      - -c
+      - >-
+        if [ -f /app/data/gridquery.duckdb ]; then echo "Database found, skipping download.";
+        else python -m gridquery.ingestion && python -m gridquery.database load; fi
+    restart: "no"
+
+  app:
+    <<: *gridquery
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    ports:
+      # Bound to localhost: every question costs LLM tokens. Remove "127.0.0.1:" to expose it.
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped

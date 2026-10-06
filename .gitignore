@@ -1,0 +1,34 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv/
+
+# Secrets
+.env
+
+# Data (downloaded SMARD files, DuckDB databases)
+data/*
+!data/.gitkeep
+!data/eval/
+*.duckdb
+*.duckdb.wal
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.gradio/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Evaluation checkpoints (the eval_*.json/.md reports are kept)
+data/eval/results/*.progress.jsonl

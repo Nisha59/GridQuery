@@ -1,0 +1,120 @@
+# Descriptions of the GridQuery database, shown to the agent and stored as DuckDB comments.
+#
+# Edit freely: keep texts short (they cost tokens on every question).
+# Every table/view and every column must be listed here; tests/tools/test_schema_context.py
+# fails if this file and the database schema drift apart.
+#
+# Column entries: description (required), unit (optional).
+
+[database]
+description = "German electricity data from SMARD (Bundesnetzagentur), hourly, Germany only."
+notes = [
+    "All *_utc columns are UTC; each row is the hour starting then. German time: to_berlin_time(ts). *_local columns and date_local/month_local are already German time.",
+    "Energy in MWh per hour (MWh in one hour = average MW). Prices in EUR/MWh, day-ahead auction, bidding zone DE-LU; negative prices are real.",
+    "Prefer the summary views for daily/monthly questions; use base tables for hourly detail or per-source hourly data.",
+    "renewable_share_of_generation is a 0-1 fraction of generation (not of consumption).",
+    "Price averages in the summary views are unweighted means of hourly prices.",
+    "Days/months with hours below 23-25 (days) are incomplete, usually the latest ones.",
+    "No data for: imports/exports, pumped storage, CO2 emissions, regions within Germany, forecasts.",
+]
+
+# --- Tables ------------------------------------------------------------------------------------
+
+[relations.energy_sources]
+description = "Generation sources with English/German names and classification."
+[relations.energy_sources.columns]
+source = { description = "Key used in generation.source." }
+name_en = { description = "English name." }
+name_de = { description = "German name as used by SMARD." }
+is_renewable = { description = "Renewable source." }
+is_fossil = { description = "Fossil source. Nuclear is neither fossil nor renewable." }
+smard_filter_id = { description = "SMARD data series ID." }
+description = { description = "Short explanation of the source." }
+
+[relations.generation]
+description = "Hourly net electricity generation per source (long format: one row per hour and source)."
+[relations.generation.columns]
+timestamp_utc = { description = "Start of the hour, UTC." }
+source = { description = "Source key, see energy_sources." }
+generation_mwh = { unit = "MWh", description = "Electricity generated in the hour." }
+
+[relations.consumption]
+description = "Hourly total electricity consumption in Germany (grid load, 'Netzlast')."
+[relations.consumption.columns]
+timestamp_utc = { description = "Start of the hour, UTC." }
+consumption_mwh = { unit = "MWh", description = "Electricity consumed in the hour." }
+
+[relations.day_ahead_prices]
+description = "Hourly day-ahead wholesale price, bidding zone Germany/Luxembourg. Since 2025-10-01 the mean of four 15-min prices."
+[relations.day_ahead_prices.columns]
+timestamp_utc = { description = "Start of the hour, UTC." }
+price_eur_per_mwh = { unit = "EUR/MWh", description = "Price; can be negative." }
+
+# --- Views -------------------------------------------------------------------------------------
+
+[relations.hourly_summary]
+description = "One row per hour with totals, renewable share, consumption and price."
+[relations.hourly_summary.columns]
+timestamp_utc = { description = "Start of the hour, UTC." }
+timestamp_local = { description = "Start of the hour, German time." }
+total_generation_mwh = { unit = "MWh", description = "Sum over all sources." }
+renewable_generation_mwh = { unit = "MWh", description = "Sum over renewable sources." }
+fossil_generation_mwh = { unit = "MWh", description = "Sum over fossil sources." }
+renewable_share_of_generation = { unit = "0-1", description = "Renewable / total generation." }
+consumption_mwh = { unit = "MWh", description = "Consumption." }
+price_eur_per_mwh = { unit = "EUR/MWh", description = "Day-ahead price." }
+
+[relations.daily_summary]
+description = "One row per German calendar day."
+[relations.daily_summary.columns]
+date_local = { description = "German calendar date." }
+total_generation_mwh = { unit = "MWh", description = "Total generation." }
+renewable_generation_mwh = { unit = "MWh", description = "Renewable generation." }
+fossil_generation_mwh = { unit = "MWh", description = "Fossil generation." }
+renewable_share_of_generation = { unit = "0-1", description = "Renewable / total generation." }
+consumption_mwh = { unit = "MWh", description = "Total consumption." }
+avg_price_eur_per_mwh = { unit = "EUR/MWh", description = "Mean hourly price." }
+min_price_eur_per_mwh = { unit = "EUR/MWh", description = "Lowest hourly price." }
+max_price_eur_per_mwh = { unit = "EUR/MWh", description = "Highest hourly price." }
+negative_price_hours = { description = "Hours with price < 0." }
+hours = { description = "Hours with consumption data (incomplete if below a full day/month)." }
+
+[relations.monthly_summary]
+description = "One row per German calendar month; same measures as daily_summary."
+[relations.monthly_summary.columns]
+month_local = { description = "First day of the month." }
+total_generation_mwh = { unit = "MWh", description = "Total generation." }
+renewable_generation_mwh = { unit = "MWh", description = "Renewable generation." }
+fossil_generation_mwh = { unit = "MWh", description = "Fossil generation." }
+renewable_share_of_generation = { unit = "0-1", description = "Renewable / total generation." }
+consumption_mwh = { unit = "MWh", description = "Total consumption." }
+avg_price_eur_per_mwh = { unit = "EUR/MWh", description = "Mean hourly price." }
+min_price_eur_per_mwh = { unit = "EUR/MWh", description = "Lowest hourly price." }
+max_price_eur_per_mwh = { unit = "EUR/MWh", description = "Highest hourly price." }
+negative_price_hours = { description = "Hours with price < 0." }
+hours = { description = "Hours with consumption data (incomplete if below a full day/month)." }
+
+[relations.generation_daily]
+description = "Generation per source per German calendar day."
+[relations.generation_daily.columns]
+date_local = { description = "German calendar date." }
+source = { description = "Source key, see energy_sources." }
+generation_mwh = { unit = "MWh", description = "Generation in the period." }
+hours = { description = "Hours with data." }
+
+[relations.generation_monthly]
+description = "Generation per source per German calendar month."
+[relations.generation_monthly.columns]
+month_local = { description = "First day of the month." }
+source = { description = "Source key, see energy_sources." }
+generation_mwh = { unit = "MWh", description = "Generation in the period." }
+hours = { description = "Hours with data." }
+
+[relations.data_coverage]
+description = "First/last available hour and row count per series."
+[relations.data_coverage.columns]
+table_name = { description = "Table holding the series." }
+series = { description = "Source key, 'consumption' or 'day_ahead_price'." }
+first_timestamp_utc = { description = "First hour with data, UTC." }
+last_timestamp_utc = { description = "Last hour with data, UTC." }
+row_count = { description = "Number of hours." }
